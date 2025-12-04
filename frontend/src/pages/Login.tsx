@@ -34,9 +34,29 @@ const Login = () => {
     try {
       const response = await api.get('/auth/url');
       window.location.href = response.data.url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to get auth URL:', error);
-      alert('Failed to initiate login. Please try again.');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+      const status = error.response?.status;
+      
+      let alertMessage = 'Failed to initiate login. Please try again.\n\n';
+      alertMessage += `API URL: ${apiUrl}\n`;
+      if (status) {
+        alertMessage += `Status: ${status}\n`;
+      }
+      alertMessage += `Error: ${errorMessage}\n\n`;
+      
+      if (apiUrl.includes('localhost')) {
+        alertMessage += '⚠️ Backend URL is set to localhost. Please set VITE_API_URL in Vercel environment variables.';
+      } else if (status === 0 || error.code === 'ERR_NETWORK') {
+        alertMessage += '⚠️ Cannot connect to backend. Please check:\n';
+        alertMessage += '1. Backend is deployed and running\n';
+        alertMessage += '2. VITE_API_URL is correct in Vercel\n';
+        alertMessage += '3. Backend CORS allows your frontend domain';
+      }
+      
+      alert(alertMessage);
     }
   };
 
