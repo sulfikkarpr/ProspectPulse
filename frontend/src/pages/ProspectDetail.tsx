@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../components/Layout';
@@ -6,6 +6,21 @@ import { Button } from '../components/Button';
 import { Textarea } from '../components/Textarea';
 import { Modal } from '../components/Modal';
 import api from '../services/api';
+
+interface PreTalk {
+  id: string;
+  scheduled_at: string;
+  mentor_name: string;
+  status: string;
+  meet_link?: string;
+}
+
+interface ActivityLog {
+  id: string;
+  action: string;
+  user_name: string;
+  created_at: string;
+}
 
 interface ProspectDetail {
   id: string;
@@ -19,8 +34,8 @@ interface ProspectDetail {
   status: string;
   notes?: string;
   created_at: string;
-  activity_logs: any[];
-  pre_talks: any[];
+  activity_logs: ActivityLog[];
+  pre_talks: PreTalk[];
 }
 
 const ProspectDetail = () => {
@@ -37,10 +52,13 @@ const ProspectDetail = () => {
       return response.data;
     },
     enabled: !!id,
-    onSuccess: (data) => {
-      setNotes(data.notes || '');
-    },
   });
+
+  useEffect(() => {
+    if (prospect) {
+      setNotes(prospect.notes || '');
+    }
+  }, [prospect]);
 
   const updateNotesMutation = useMutation({
     mutationFn: async (newNotes: string) => {
@@ -155,7 +173,7 @@ const ProspectDetail = () => {
               <p className="text-gray-500">No pre-talks scheduled</p>
             ) : (
               <ul className="space-y-3">
-                {prospect.pre_talks.map((talk) => (
+                {prospect.pre_talks.map((talk: PreTalk) => (
                   <li key={talk.id} className="border-b pb-3">
                     <div className="flex justify-between">
                       <div>
@@ -188,7 +206,7 @@ const ProspectDetail = () => {
               <p className="text-gray-500">No activity logged</p>
             ) : (
               <ul className="space-y-3">
-                {prospect.activity_logs.map((log) => (
+                {prospect.activity_logs.map((log: ActivityLog) => (
                   <li key={log.id} className="border-b pb-3">
                     <div className="flex justify-between">
                       <div>
