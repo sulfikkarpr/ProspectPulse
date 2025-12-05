@@ -71,10 +71,23 @@ export const callbackHandler = async (
       user = updateResult.rows[0];
     } else {
       console.log('Step 4: Creating new user...');
-      // Create new user (default role: member, not approved by default)
+      
+      // Check if this is the first user (no other users exist)
+      const userCountQuery = 'SELECT COUNT(*) as count FROM users';
+      const userCountResult = await pool.query(userCountQuery);
+      const userCount = parseInt(userCountResult.rows[0].count, 10);
+      const isFirstUser = userCount === 0;
+      
+      // First user gets admin role and auto-approved
+      // Subsequent users are members and need approval
+      const role = isFirstUser ? 'admin' : 'member';
+      const isApproved = isFirstUser ? true : false;
+      
+      console.log(`Creating user as ${role}, approved: ${isApproved} (First user: ${isFirstUser})`);
+      
       const insertQuery = `
         INSERT INTO users (google_id, name, email, avatar_url, refresh_token, role, is_approved)
-        VALUES ($1, $2, $3, $4, $5, 'member', false)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `;
       const insertResult = await pool.query(insertQuery, [
@@ -83,8 +96,14 @@ export const callbackHandler = async (
         userInfo.email,
         userInfo.picture,
         tokens.refresh_token,
+        role,
+        isApproved,
       ]);
       user = insertResult.rows[0];
+      
+      if (isFirstUser) {
+        console.log('✅ First user created as admin and auto-approved');
+      }
     }
 
     // Check if user is approved
