@@ -18,7 +18,20 @@ export const requireRole = (...allowedRoles: Role[]) => {
   };
 };
 
-export const requireAdmin = requireRole('admin');
+// Admin access: either has admin role OR has verified admin key
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.userRole) {
+    return next(new AppError('Unauthorized', 401));
+  }
+
+  // Allow if user is admin OR has verified admin key
+  if (req.userRole === 'admin' || req.adminKeyVerified) {
+    return next();
+  }
+
+  return next(new AppError('Forbidden: Admin access required', 403));
+};
+
 export const requireMentor = requireRole('admin', 'mentor');
 export const requireAny = requireRole('admin', 'mentor', 'member');
 

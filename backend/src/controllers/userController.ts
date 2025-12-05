@@ -72,8 +72,8 @@ export const approveUser = async (
       return next(new AppError('Unauthorized', 401));
     }
 
-    // Only admins can approve users
-    if (req.userRole !== 'admin') {
+    // Only admins (or users with verified admin key) can approve users
+    if (req.userRole !== 'admin' && !req.adminKeyVerified) {
       return next(new AppError('Forbidden: Only admins can approve users', 403));
     }
 
@@ -136,8 +136,8 @@ export const updateUserRole = async (
       return next(new AppError('Unauthorized', 401));
     }
 
-    // Only admins can update roles
-    if (req.userRole !== 'admin') {
+    // Only admins (or users with verified admin key) can update roles
+    if (req.userRole !== 'admin' && !req.adminKeyVerified) {
       return next(new AppError('Forbidden: Only admins can update user roles', 403));
     }
 

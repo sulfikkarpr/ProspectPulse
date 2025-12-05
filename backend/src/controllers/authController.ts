@@ -203,16 +203,19 @@ export const verifyAdminKeyHandler = async (
       return next(new AppError('Invalid admin key', 401));
     }
 
-    // Check if user is admin
-    const userQuery = 'SELECT role FROM users WHERE id = $1';
+    // Check if user is approved (admin or approved member can use admin key)
+    const userQuery = 'SELECT role, is_approved FROM users WHERE id = $1';
     const userResult = await pool.query(userQuery, [req.userId]);
 
     if (userResult.rows.length === 0) {
       return next(new AppError('User not found', 404));
     }
 
-    if (userResult.rows[0].role !== 'admin') {
-      return next(new AppError('Only admins can verify admin key', 403));
+    const user = userResult.rows[0];
+
+    // Only approved users (admin or approved member) can verify admin key
+    if (!user.is_approved) {
+      return next(new AppError('User must be approved to verify admin key', 403));
     }
 
     // Generate new token with admin key verified
