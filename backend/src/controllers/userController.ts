@@ -44,8 +44,8 @@ export const getPendingUsers = async (
       return next(new AppError('Unauthorized', 401));
     }
 
-    // Only admins can see pending users
-    if (req.userRole !== 'admin') {
+    // Only admins (or users with verified admin key) can see pending users
+    if (req.userRole !== 'admin' && !req.adminKeyVerified) {
       return next(new AppError('Forbidden: Only admins can view pending users', 403));
     }
 
