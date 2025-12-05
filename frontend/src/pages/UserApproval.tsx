@@ -19,6 +19,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  avatar_url?: string;
   role: string;
   is_approved: boolean;
   created_at: string;
