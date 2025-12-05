@@ -21,8 +21,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Only clear auth if we're not already on login page
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/auth/callback')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('adminKeyVerified');
+        // Use navigate if available, otherwise redirect
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

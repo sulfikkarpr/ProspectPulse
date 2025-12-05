@@ -61,31 +61,58 @@ function AuthCallback() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, token, setUser, setLoading } = useAuthStore();
+  const { user, isLoading, token, setUser, setLoading, isInitialized, setInitialized } = useAuthStore();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (token && !user && !isLoading) {
+    const initializeAuth = async () => {
+      // Skip if already initialized
+      if (isInitialized) return;
+
+      // If no token, mark as initialized and done
+      if (!token) {
+        setInitialized(true);
+        setLoading(false);
+        return;
+      }
+
+      // If we have cached user, use it temporarily while fetching fresh data
+      if (user) {
+        setInitialized(true);
+        setLoading(false);
+        // Fetch fresh user data in background
         try {
-          setLoading(true);
           const response = await api.get('/auth/me');
           setUser(response.data);
-          setLoading(false);
         } catch (error: any) {
-          console.error('Failed to fetch user in ProtectedRoute:', error);
-          console.error('Error details:', error.response?.data || error.message);
-          useAuthStore.getState().logout();
-          setLoading(false);
+          console.error('Failed to refresh user data:', error);
+          // If token is invalid, logout
+          if (error.response?.status === 401) {
+            useAuthStore.getState().logout();
+          }
         }
-      } else if (!token) {
+        return;
+      }
+
+      // No cached user, fetch from API
+      try {
+        setLoading(true);
+        const response = await api.get('/auth/me');
+        setUser(response.data);
+        setInitialized(true);
+        setLoading(false);
+      } catch (error: any) {
+        console.error('Failed to fetch user in ProtectedRoute:', error);
+        useAuthStore.getState().logout();
+        setInitialized(true);
         setLoading(false);
       }
     };
 
-    fetchUser();
-  }, [token, user, isLoading, setUser, setLoading]);
+    initializeAuth();
+  }, [token, user, isLoading, isInitialized, setUser, setLoading, setInitialized]);
 
-  if (isLoading) {
+  // Show loading only if not initialized
+  if (!isInitialized || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading...</div>
@@ -93,6 +120,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // If no token, redirect to login
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If no user after initialization, redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -106,18 +139,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  const { setLoading } = useAuthStore();
-
-  useEffect(() => {
-    // Initialize auth state
-    const token = localStorage.getItem('token');
-    if (token) {
-      setLoading(true);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
   return (
     <BrowserRouter>
       <Routes>

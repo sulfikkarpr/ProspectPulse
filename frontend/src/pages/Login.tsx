@@ -5,27 +5,47 @@ import api from '../services/api';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { setUser, setToken, setLoading } = useAuthStore();
+  const { user, token, setUser, setToken, setLoading } = useAuthStore();
 
   useEffect(() => {
     // Check if user is already logged in
-    const token = localStorage.getItem('token');
-    if (token) {
-      setToken(token);
+    if (token && user) {
+      // User is already logged in, redirect to dashboard
+      if (user.is_approved) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/pending-approval', { replace: true });
+      }
+      return;
+    }
+
+    // If we have a token but no user, try to fetch user
+    if (token && !user) {
       fetchUser();
     } else {
       setLoading(false);
     }
-  }, []);
+  }, [token, user, navigate, setToken, setLoading]);
 
   const fetchUser = async () => {
     try {
+      setLoading(true);
       const response = await api.get('/auth/me');
-      setUser(response.data);
-      navigate('/dashboard');
+      const userData = response.data;
+      setUser(userData);
+      setLoading(false);
+      
+      if (userData.is_approved) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/pending-approval', { replace: true });
+      }
     } catch (error) {
+      // Token is invalid, clear it
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setToken(null);
+      setUser(null);
       setLoading(false);
     }
   };

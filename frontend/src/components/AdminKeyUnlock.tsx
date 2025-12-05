@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import api from '../services/api';
-import Button from './Button';
-import Input from './Input';
-import Modal from './Modal';
+import { Button } from './Button';
+import { Input } from './Input';
+import { Modal } from './Modal';
 
 interface AdminKeyUnlockProps {
   onSuccess?: () => void;
@@ -16,7 +16,7 @@ const AdminKeyUnlock = ({ onSuccess }: AdminKeyUnlockProps) => {
   const [error, setError] = useState('');
   const { setToken, setAdminKeyVerified } = useAuthStore();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
