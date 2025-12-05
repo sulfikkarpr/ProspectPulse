@@ -8,6 +8,7 @@ import { z } from 'zod';
 const createPreTalkSchema = z.object({
   prospect_id: z.string().uuid('Invalid prospect ID'),
   mentor_id: z.string().uuid('Invalid mentor ID'),
+  assigned_to: z.string().uuid('Invalid assigned user ID').optional(), // Assign to any team member
   scheduled_at: z.string().refine((val) => {
     // Accept both ISO datetime and datetime-local format (YYYY-MM-DDTHH:mm)
     const isoDate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d{3})?(Z|[+-]\d{2}:\d{2})?$/;
@@ -16,6 +17,7 @@ const createPreTalkSchema = z.object({
   }, {
     message: 'Invalid date format. Expected ISO datetime or datetime-local format (YYYY-MM-DDTHH:mm)',
   }),
+  notes: z.string().optional(), // Notes/options for pre-talk
 });
 
 const updatePreTalkSchema = z.object({
@@ -65,6 +67,17 @@ export const createPreTalk = async (
 
     const mentor = mentorResult.rows[0];
 
+    // Verify assigned_to user exists (if provided)
+    let assignedUser = null;
+    if (validated.assigned_to) {
+      const assignedQuery = 'SELECT * FROM users WHERE id = $1';
+      const assignedResult = await pool.query(assignedQuery, [validated.assigned_to]);
+      if (assignedResult.rows.length === 0) {
+        return next(new AppError('Assigned user not found', 404));
+      }
+      assignedUser = assignedResult.rows[0];
+    }
+
     // Get current user email for calendar event
     const userQuery = 'SELECT email, name FROM users WHERE id = $1';
     const userResult = await pool.query(userQuery, [req.userId]);
@@ -85,32 +98,69 @@ export const createPreTalk = async (
       return next(new AppError('Invalid date format', 400));
     }
 
+    // Check calendar conflict: one pre-talk per time slot for assigned user
+    if (validated.assigned_to) {
+      const conflictStart = new Date(scheduledAt.getTime() - 30 * 60 * 1000); // 30 min before
+      const conflictEnd = new Date(scheduledAt.getTime() + 90 * 60 * 1000); // 30 min after (1 hour + 30 min buffer)
+      
+      const conflictQuery = `
+        SELECT pt.*, p.name as prospect_name
+        FROM pre_talks pt
+        LEFT JOIN prospects p ON pt.prospect_id = p.id
+        WHERE pt.assigned_to = $1
+        AND pt.status != 'canceled'
+        AND pt.scheduled_at >= $2
+        AND pt.scheduled_at < $3
+      `;
+      const conflictResult = await pool.query(conflictQuery, [
+        validated.assigned_to,
+        conflictStart,
+        conflictEnd,
+      ]);
+
+      if (conflictResult.rows.length > 0) {
+        const conflict = conflictResult.rows[0];
+        return next(new AppError(
+          `Calendar conflict: ${assignedUser.name} already has a pre-talk scheduled with ${conflict.prospect_name} at ${new Date(conflict.scheduled_at).toLocaleString()}`,
+          400
+        ));
+      }
+    }
+
     const endTime = new Date(scheduledAt.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+    // Build attendee list (mentor, assigned user if different, current user)
+    const attendeeEmails = [mentor.email, currentUser.email];
+    if (assignedUser && assignedUser.email && !attendeeEmails.includes(assignedUser.email)) {
+      attendeeEmails.push(assignedUser.email);
+    }
 
     const { eventId, meetLink } = await createCalendarEventWithMeet({
       summary: `Pre-Talk: ${prospect.name}`,
-      description: `Pre-talk session with ${prospect.name}\n\nProspect Details:\nPhone: ${prospect.phone || 'N/A'}\nEmail: ${prospect.email || 'N/A'}\nCity: ${prospect.city || 'N/A'}`,
+      description: `Pre-talk session with ${prospect.name}\n\nProspect Details:\nPhone: ${prospect.phone || 'N/A'}\nEmail: ${prospect.email || 'N/A'}\nCity: ${prospect.city || 'N/A'}\n\n${validated.notes ? `Notes: ${validated.notes}` : ''}`,
       startTime: scheduledAt,
       endTime,
-      attendeeEmails: [mentor.email, currentUser.email].filter(Boolean),
+      attendeeEmails: attendeeEmails.filter(Boolean),
       userId: req.userId,
     });
 
     // Create pre-talk record
     const insertQuery = `
       INSERT INTO pre_talks (
-        prospect_id, mentor_id, scheduled_at, calendar_event_id, meet_link, status
+        prospect_id, mentor_id, assigned_to, scheduled_at, calendar_event_id, meet_link, status, notes
       )
-      VALUES ($1, $2, $3, $4, $5, 'scheduled')
+      VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)
       RETURNING *
     `;
 
     const result = await pool.query(insertQuery, [
       validated.prospect_id,
       validated.mentor_id,
+      validated.assigned_to || null,
       scheduledAt,
       eventId,
       meetLink,
+      validated.notes || null,
     ]);
 
     const preTalk = result.rows[0];
@@ -131,10 +181,33 @@ export const createPreTalk = async (
         JSON.stringify({
           pre_talk_id: preTalk.id,
           mentor_id: validated.mentor_id,
+          assigned_to: validated.assigned_to || null,
           scheduled_at: validated.scheduled_at,
         }),
       ]
     );
+
+    // Send notification to assigned user if different from mentor and creator
+    if (validated.assigned_to && assignedUser && validated.assigned_to !== validated.mentor_id && validated.assigned_to !== req.userId) {
+      await pool.query(
+        'INSERT INTO activity_logs (user_id, prospect_id, action, meta) VALUES ($1, $2, $3, $4)',
+        [
+          validated.assigned_to,
+          validated.prospect_id,
+          'pre_talk_assigned',
+          JSON.stringify({
+            pre_talk_id: preTalk.id,
+            assigned_by: req.userId,
+            assigned_by_name: currentUser.name,
+            mentor_id: validated.mentor_id,
+            mentor_name: mentor.name,
+            scheduled_at: validated.scheduled_at,
+            prospect_name: prospect.name,
+            meet_link: meetLink,
+          }),
+        ]
+      );
+    }
 
     res.status(201).json(preTalk);
   } catch (error) {

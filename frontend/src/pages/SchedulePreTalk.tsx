@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { Select } from '../components/Select';
 import { Input } from '../components/Input';
+import { Textarea } from '../components/Textarea';
 import api from '../services/api';
 
 interface Prospect {
@@ -24,7 +25,9 @@ const SchedulePreTalk = () => {
   const [formData, setFormData] = useState({
     prospect_id: '',
     mentor_id: '',
+    assigned_to: '',
     scheduled_at: '',
+    notes: '',
   });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,6 +44,14 @@ const SchedulePreTalk = () => {
     queryKey: ['mentors'],
     queryFn: async () => {
       const response = await api.get('/users/mentors');
+      return response.data;
+    },
+  });
+
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const response = await api.get('/users');
       return response.data;
     },
   });
@@ -65,7 +76,9 @@ const SchedulePreTalk = () => {
       setFormData({
         prospect_id: '',
         mentor_id: '',
+        assigned_to: '',
         scheduled_at: '',
+        notes: '',
       });
     },
   });
@@ -184,12 +197,33 @@ const SchedulePreTalk = () => {
               ))}
             </Select>
 
+            <Select
+              label="Assign To (Pre-Talk Taker) - Optional"
+              value={formData.assigned_to}
+              onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+            >
+              <option value="">None (Mentor will take)</option>
+              {allUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} {user.role === 'admin' ? '(Admin)' : user.role === 'mentor' ? '(Mentor)' : ''}
+                </option>
+              ))}
+            </Select>
+
             <Input
               label="Scheduled Date & Time *"
               type="datetime-local"
               value={formData.scheduled_at}
               onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
               required
+            />
+
+            <Textarea
+              label="Notes/Options (Optional)"
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={4}
+              placeholder="Add any notes, options, or special instructions for this pre-talk session..."
             />
 
             <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">

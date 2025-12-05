@@ -34,8 +34,12 @@ function AuthCallback() {
         setUser(userData);
         setLoading(false);
         
-        // Always redirect to dashboard - ProtectedRoute will handle pending check
-        navigate('/dashboard', { replace: true });
+        // Check if user is approved - redirect accordingly
+        if (!userData.is_approved) {
+          navigate('/pending-approval', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } catch (error: any) {
         console.error('Failed to fetch user:', error);
         setLoading(false);
