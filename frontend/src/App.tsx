@@ -15,43 +15,36 @@ function AuthCallback() {
   const navigate = useNavigate();
   const { setToken, setUser, setLoading } = useAuthStore();
   const token = searchParams.get('token');
-  const pending = searchParams.get('pending') === 'true';
 
   useEffect(() => {
-    const fetchUser = async () => {
-      if (token) {
-        try {
-          setLoading(true);
-          setToken(token);
-          
-          // Fetch user data
-          const response = await api.get('/auth/me');
-          const userData = response.data;
-          setUser(userData);
-          setLoading(false);
-          
-          // Check if user is pending approval
-          if (pending || !userData.is_approved) {
-            navigate('/pending-approval', { replace: true });
-          } else {
-            // Navigate to dashboard
-            navigate('/dashboard', { replace: true });
-          }
-        } catch (error: any) {
-          console.error('Failed to fetch user:', error);
-          console.error('Error details:', error.response?.data || error.message);
-          setLoading(false);
-          // Redirect to login if auth fails
-          navigate('/login', { replace: true });
-        }
-      } else {
+    const initializeAuth = async () => {
+      if (!token) {
+        setLoading(false);
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setToken(token);
+        
+        // Fetch user data
+        const response = await api.get('/auth/me');
+        const userData = response.data;
+        setUser(userData);
+        setLoading(false);
+        
+        // Always redirect to dashboard - ProtectedRoute will handle pending check
+        navigate('/dashboard', { replace: true });
+      } catch (error: any) {
+        console.error('Failed to fetch user:', error);
         setLoading(false);
         navigate('/login', { replace: true });
       }
     };
 
-    fetchUser();
-  }, [token, pending, navigate, setToken, setUser, setLoading]);
+    initializeAuth();
+  }, [token, navigate, setToken, setUser, setLoading]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -75,25 +68,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // If we have cached user, use it temporarily while fetching fresh data
+      // If we have cached user, use it immediately (fast path)
       if (user) {
         setInitialized(true);
         setLoading(false);
-        // Fetch fresh user data in background
-        try {
-          const response = await api.get('/auth/me');
-          setUser(response.data);
-        } catch (error: any) {
-          console.error('Failed to refresh user data:', error);
-          // If token is invalid, logout
-          if (error.response?.status === 401) {
-            useAuthStore.getState().logout();
-          }
-        }
+        // Refresh user data in background (non-blocking)
+        api.get('/auth/me')
+          .then(response => setUser(response.data))
+          .catch(error => {
+            if (error.response?.status === 401) {
+              useAuthStore.getState().logout();
+            }
+          });
         return;
       }
 
-      // No cached user, fetch from API
+      // No cached user, fetch from API (only once)
       try {
         setLoading(true);
         const response = await api.get('/auth/me');
@@ -101,7 +91,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         setInitialized(true);
         setLoading(false);
       } catch (error: any) {
-        console.error('Failed to fetch user in ProtectedRoute:', error);
+        console.error('Failed to fetch user:', error);
         useAuthStore.getState().logout();
         setInitialized(true);
         setLoading(false);
@@ -111,8 +101,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     initializeAuth();
   }, [token, user, isLoading, isInitialized, setUser, setLoading, setInitialized]);
 
-  // Show loading only if not initialized
-  if (!isInitialized || isLoading) {
+  // Show loading only during initial fetch
+  if (!isInitialized && isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading...</div>
@@ -130,7 +120,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Check if user is approved (except for pending-approval page)
+  // Single check: if not approved, redirect to pending (except on pending page itself)
   if (!user.is_approved && !window.location.pathname.includes('/pending-approval')) {
     return <Navigate to="/pending-approval" replace />;
   }

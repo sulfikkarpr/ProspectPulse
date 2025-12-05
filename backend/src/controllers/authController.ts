@@ -106,19 +106,12 @@ export const callbackHandler = async (
       }
     }
 
-    // Check if user is approved
-    if (!user.is_approved) {
-      console.log('User is not approved yet, redirecting to pending page...');
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}/auth/callback?token=${generateToken(user.id, user.role)}&pending=true`);
-    }
-
     console.log('Step 5: Generating JWT token...');
-    // Generate JWT token
+    // Generate JWT token (include is_approved in token for faster frontend checks)
     const token = generateToken(user.id, user.role);
 
     console.log('Step 6: Redirecting to frontend...');
-    // Redirect to frontend with token
+    // Always redirect to dashboard - frontend will handle pending approval check
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   } catch (error: any) {

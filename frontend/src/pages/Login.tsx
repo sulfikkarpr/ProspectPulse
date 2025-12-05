@@ -8,24 +8,20 @@ const Login = () => {
   const { user, token, setUser, setToken, setLoading } = useAuthStore();
 
   useEffect(() => {
-    // Check if user is already logged in
+    // If user is already logged in, redirect immediately
     if (token && user) {
-      // User is already logged in, redirect to dashboard
-      if (user.is_approved) {
-        navigate('/dashboard', { replace: true });
-      } else {
-        navigate('/pending-approval', { replace: true });
-      }
+      // Let ProtectedRoute handle the approval check
+      navigate('/dashboard', { replace: true });
       return;
     }
 
-    // If we have a token but no user, try to fetch user
+    // If we have a token but no user, fetch user once
     if (token && !user) {
       fetchUser();
     } else {
       setLoading(false);
     }
-  }, [token, user, navigate, setToken, setLoading]);
+  }, [token, user, navigate]);
 
   const fetchUser = async () => {
     try {
