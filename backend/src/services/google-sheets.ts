@@ -47,11 +47,13 @@ export const syncProspectsToSheets = async (userId: string): Promise<void> => {
         p.notes,
         u_mentor.name as assigned_mentor,
         u_creator.name as created_by_name,
+        u_referrer.name as referred_by_name,
         p.created_at,
         p.updated_at
       FROM prospects p
       LEFT JOIN users u_mentor ON p.assigned_mentor_id = u_mentor.id
       LEFT JOIN users u_creator ON p.created_by = u_creator.id
+      LEFT JOIN users u_referrer ON p.referred_by = u_referrer.id
       ORDER BY p.created_at DESC
     `;
 
@@ -71,13 +73,14 @@ export const syncProspectsToSheets = async (userId: string): Promise<void> => {
       p.status || '',
       p.assigned_mentor || '',
       p.created_by_name || '',
+      p.referred_by_name || '',
       p.notes || '',
       new Date(p.created_at).toISOString(),
       new Date(p.updated_at).toISOString(),
     ]);
 
     // Clear existing data and add headers
-    const range = 'Prospects!A1:N1';
+    const range = 'Prospects!A1:O1';
     const headers = [
       'ID',
       'Name',
@@ -90,6 +93,7 @@ export const syncProspectsToSheets = async (userId: string): Promise<void> => {
       'Status',
       'Assigned Mentor',
       'Created By',
+      'Referred By',
       'Notes',
       'Created At',
       'Updated At',

@@ -103,6 +103,50 @@ export const approveUser = async (
   }
 };
 
+export const deleteUser = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) {
+      return next(new AppError('Unauthorized', 401));
+    }
+
+    // Only admins (or users with verified admin key) can delete users
+    if (req.userRole !== 'admin' && !req.adminKeyVerified) {
+      return next(new AppError('Forbidden: Only admins can delete users', 403));
+    }
+
+    const { id } = req.params;
+
+    // Prevent self-deletion
+    if (id === req.userId) {
+      return next(new AppError('Cannot delete your own account', 400));
+    }
+
+    // Check if user exists
+    const checkQuery = 'SELECT * FROM users WHERE id = $1';
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      return next(new AppError('User not found', 404));
+    }
+
+    // Delete user (CASCADE will handle related data)
+    const deleteQuery = 'DELETE FROM users WHERE id = $1 RETURNING id, name, email';
+    const result = await pool.query(deleteQuery, [id]);
+
+    res.json({ 
+      success: true, 
+      message: 'User deleted successfully',
+      deletedUser: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMentors = async (
   req: AuthRequest,
   res: Response,

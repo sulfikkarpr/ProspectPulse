@@ -86,10 +86,12 @@ const SchedulePreTalk = () => {
 
   return (
     <Layout>
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Schedule Pre-Talk</h1>
-          <Button onClick={() => setIsModalOpen(true)}>Schedule New Pre-Talk</Button>
+      <div className="px-2 sm:px-4 lg:px-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Schedule Pre-Talk</h1>
+          <Button onClick={() => setIsModalOpen(true)} size="sm" className="w-full sm:w-auto text-sm">
+            + Schedule New
+          </Button>
         </div>
 
         {isLoading ? (
@@ -102,44 +104,43 @@ const SchedulePreTalk = () => {
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
             <ul className="divide-y divide-gray-200">
               {preTalks.map((talk: any) => (
-                <li key={talk.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <h3 className="text-lg font-medium text-gray-900">
+                <li key={talk.id} className="px-3 sm:px-6 py-3 sm:py-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                           {talk.prospect_name}
                         </h3>
                         <span
-                          className={`ml-3 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                          className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(
                             talk.status
                           )}`}
                         >
                           {talk.status}
                         </span>
                       </div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Mentor: {talk.mentor_name}
+                      <div className="text-xs sm:text-sm text-gray-500 space-y-1">
+                        <div>👤 Mentor: {talk.mentor_name}</div>
+                        <div>📅 {new Date(talk.scheduled_at).toLocaleString()}</div>
+                        {talk.meet_link && (
+                          <a
+                            href={talk.meet_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block text-blue-600 hover:underline"
+                          >
+                            🔗 Join Google Meet
+                          </a>
+                        )}
                       </div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Scheduled: {new Date(talk.scheduled_at).toLocaleString()}
-                      </div>
-                      {talk.meet_link && (
-                        <a
-                          href={talk.meet_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-block text-blue-600 hover:underline text-sm"
-                        >
-                          Join Google Meet →
-                        </a>
-                      )}
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => navigate(`/prospects/${talk.prospect_id}`)}
+                      className="w-full sm:w-auto"
                     >
-                      View Prospect
+                      View
                     </Button>
                   </div>
                 </li>
@@ -191,15 +192,16 @@ const SchedulePreTalk = () => {
               required
             />
 
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending} className="w-full sm:w-auto">
                 {createMutation.isPending ? 'Scheduling...' : 'Schedule Pre-Talk'}
               </Button>
             </div>

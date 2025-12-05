@@ -13,6 +13,7 @@ const createProspectSchema = z.object({
   profession: z.string().optional(),
   source: z.string().min(1, 'Source is required'),
   assigned_mentor_id: z.string().uuid().optional().nullable(),
+  referred_by: z.string().uuid().optional().nullable(),
   notes: z.string().optional(),
 });
 
@@ -33,9 +34,9 @@ export const createProspect = async (
     const query = `
       INSERT INTO prospects (
         name, phone, email, age, city, profession, source,
-        assigned_mentor_id, notes, created_by, status
+        assigned_mentor_id, referred_by, notes, created_by, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'new')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'new')
       RETURNING *
     `;
 
@@ -48,6 +49,7 @@ export const createProspect = async (
       validated.profession || null,
       validated.source,
       validated.assigned_mentor_id || null,
+      validated.referred_by || null,
       validated.notes || null,
       req.userId,
     ]);
@@ -84,13 +86,36 @@ export const getProspects = async (
       return next(new AppError('Unauthorized', 401));
     }
 
-    const { status, assigned_mentor, created_by, start_date, end_date } = req.query;
+    const { status, assigned_mentor, created_by, referred_by, search, start_date, end_date } = req.query;
 
-    let query = 'SELECT * FROM prospects WHERE 1=1';
+    let query = `
+      SELECT 
+        p.*,
+        u_creator.name as created_by_name,
+        u_mentor.name as assigned_mentor_name,
+        u_referrer.name as referred_by_name
+      FROM prospects p
+      LEFT JOIN users u_creator ON p.created_by = u_creator.id
+      LEFT JOIN users u_mentor ON p.assigned_mentor_id = u_mentor.id
+      LEFT JOIN users u_referrer ON p.referred_by = u_referrer.id
+      WHERE 1=1
+    `;
     const params: any[] = [];
     let paramCount = 0;
 
     // Organization-wide visibility: all users see all prospects
+
+    // Search functionality (name, email, phone, city)
+    if (search && typeof search === 'string' && search.trim()) {
+      paramCount++;
+      query += ` AND (
+        p.name ILIKE $${paramCount} OR 
+        p.email ILIKE $${paramCount} OR 
+        p.phone ILIKE $${paramCount} OR 
+        p.city ILIKE $${paramCount}
+      )`;
+      params.push(`%${search.trim()}%`);
+    }
 
     if (status) {
       paramCount++;
@@ -104,25 +129,31 @@ export const getProspects = async (
       params.push(assigned_mentor);
     }
 
-    if (created_by && req.userRole !== 'member') {
+    if (created_by) {
       paramCount++;
-      query += ` AND created_by = $${paramCount}`;
+      query += ` AND p.created_by = $${paramCount}`;
       params.push(created_by);
+    }
+
+    if (referred_by) {
+      paramCount++;
+      query += ` AND p.referred_by = $${paramCount}`;
+      params.push(referred_by);
     }
 
     if (start_date) {
       paramCount++;
-      query += ` AND created_at >= $${paramCount}`;
+      query += ` AND p.created_at >= $${paramCount}`;
       params.push(start_date);
     }
 
     if (end_date) {
       paramCount++;
-      query += ` AND created_at <= $${paramCount}`;
+      query += ` AND p.created_at <= $${paramCount}`;
       params.push(end_date);
     }
 
-    query += ' ORDER BY created_at DESC';
+    query += ' ORDER BY p.created_at DESC';
 
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -143,7 +174,16 @@ export const getProspectById = async (
 
     const { id } = req.params;
 
-    const query = 'SELECT * FROM prospects WHERE id = $1';
+    const query = `
+      SELECT 
+        p.*,
+        u_creator.name as created_by_name,
+        u_referrer.name as referred_by_name
+      FROM prospects p
+      LEFT JOIN users u_creator ON p.created_by = u_creator.id
+      LEFT JOIN users u_referrer ON p.referred_by = u_referrer.id
+      WHERE p.id = $1
+    `;
     const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
