@@ -26,6 +26,7 @@ export const callbackHandler = async (
     }
 
     console.log('Step 1: Exchanging code for tokens...');
+    console.log('   Code received:', code.substring(0, 20) + '...');
     // Exchange code for tokens
     const tokens = await getTokensFromCode(code);
     
@@ -102,6 +103,16 @@ export const callbackHandler = async (
       console.error('Error response:', error.response.data);
       console.error('Error status:', error.response.status);
     }
+    
+    // Provide more specific error messages
+    if (error.message === 'invalid_client') {
+      console.error('❌ OAuth Client Credentials Issue:');
+      console.error('   - Check GOOGLE_CLIENT_ID in Render environment variables');
+      console.error('   - Check GOOGLE_CLIENT_SECRET in Render environment variables');
+      console.error('   - Verify they match your Google Cloud Console OAuth Client');
+      console.error('   - Make sure there are no extra quotes or spaces');
+    }
+    
     next(new AppError(`Authentication failed: ${error.message || 'Unknown error'}`, 500));
   }
 };
