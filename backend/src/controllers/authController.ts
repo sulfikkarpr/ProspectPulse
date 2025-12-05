@@ -71,10 +71,10 @@ export const callbackHandler = async (
       user = updateResult.rows[0];
     } else {
       console.log('Step 4: Creating new user...');
-      // Create new user (default role: member)
+      // Create new user (default role: member, not approved by default)
       const insertQuery = `
-        INSERT INTO users (google_id, name, email, avatar_url, refresh_token, role)
-        VALUES ($1, $2, $3, $4, $5, 'member')
+        INSERT INTO users (google_id, name, email, avatar_url, refresh_token, role, is_approved)
+        VALUES ($1, $2, $3, $4, $5, 'member', false)
         RETURNING *
       `;
       const insertResult = await pool.query(insertQuery, [
@@ -85,6 +85,13 @@ export const callbackHandler = async (
         tokens.refresh_token,
       ]);
       user = insertResult.rows[0];
+    }
+
+    // Check if user is approved
+    if (!user.is_approved) {
+      console.log('User is not approved yet, redirecting to pending page...');
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/auth/callback?token=${generateToken(user.id, user.role)}&pending=true`);
     }
 
     console.log('Step 5: Generating JWT token...');
@@ -127,16 +134,78 @@ export const getMeHandler = async (
       return next(new AppError('Unauthorized', 401));
     }
 
-    const query = 'SELECT id, name, email, avatar_url, role, created_at FROM users WHERE id = $1';
+    const query = 'SELECT id, name, email, avatar_url, role, is_approved, created_at FROM users WHERE id = $1';
     const result = await pool.query(query, [req.userId]);
 
     if (result.rows.length === 0) {
       return next(new AppError('User not found', 404));
     }
 
-    res.json(result.rows[0]);
+    const user = result.rows[0];
+    
+    // Don't send is_approved if user is not approved (security)
+    if (!user.is_approved) {
+      return res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar_url: user.avatar_url,
+        role: user.role,
+        is_approved: false,
+        created_at: user.created_at,
+      });
+    }
+
+    res.json(user);
   } catch (error) {
     next(new AppError('Failed to get user info', 500));
+  }
+};
+
+export const verifyAdminKeyHandler = async (
+  req: Request & { userId?: string; userRole?: string },
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) {
+      return next(new AppError('Unauthorized', 401));
+    }
+
+    const { adminKey } = req.body;
+
+    if (!adminKey) {
+      return next(new AppError('Admin key is required', 400));
+    }
+
+    const ADMIN_SECRET_KEY = 'team-leisve-admin';
+
+    if (adminKey !== ADMIN_SECRET_KEY) {
+      return next(new AppError('Invalid admin key', 401));
+    }
+
+    // Check if user is admin
+    const userQuery = 'SELECT role FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [req.userId]);
+
+    if (userResult.rows.length === 0) {
+      return next(new AppError('User not found', 404));
+    }
+
+    if (userResult.rows[0].role !== 'admin') {
+      return next(new AppError('Only admins can verify admin key', 403));
+    }
+
+    // Generate new token with admin key verified
+    const token = generateToken(req.userId, userResult.rows[0].role, true);
+
+    res.json({ 
+      success: true, 
+      token,
+      message: 'Admin key verified successfully' 
+    });
+  } catch (error) {
+    next(new AppError('Failed to verify admin key', 500));
   }
 };
 

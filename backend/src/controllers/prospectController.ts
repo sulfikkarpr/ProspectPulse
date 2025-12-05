@@ -90,12 +90,7 @@ export const getProspects = async (
     const params: any[] = [];
     let paramCount = 0;
 
-    // Role-based filtering: members only see their own prospects, mentors/admins see all
-    if (req.userRole === 'member') {
-      paramCount++;
-      query += ` AND created_by = $${paramCount}`;
-      params.push(req.userId);
-    }
+    // Organization-wide visibility: all users see all prospects
 
     if (status) {
       paramCount++;
@@ -157,10 +152,7 @@ export const getProspectById = async (
 
     const prospect = result.rows[0];
 
-    // Check permissions: members can only see their own prospects
-    if (req.userRole === 'member' && prospect.created_by !== req.userId) {
-      return next(new AppError('Forbidden', 403));
-    }
+    // Organization-wide visibility: all users can see all prospects
 
     // Get activity logs for this prospect
     const logsQuery = `
@@ -215,10 +207,7 @@ export const updateProspect = async (
 
     const prospect = checkResult.rows[0];
 
-    // Check permissions
-    if (req.userRole === 'member' && prospect.created_by !== req.userId) {
-      return next(new AppError('Forbidden', 403));
-    }
+    // Organization-wide visibility: all users can update all prospects
 
     // Build update query dynamically
     const updateFields: string[] = [];

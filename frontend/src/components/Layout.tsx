@@ -2,13 +2,14 @@ import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from './Button';
+import AdminKeyUnlock from './AdminKeyUnlock';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps) => {
-  const { user, logout } = useAuthStore();
+  const { user, logout, adminKeyVerified } = useAuthStore();
   const location = useLocation();
 
   const navItems = [
@@ -16,6 +17,11 @@ export const Layout = ({ children }: LayoutProps) => {
     { path: '/prospects', label: 'Prospects' },
     { path: '/schedule', label: 'Schedule Pre-Talk' },
   ];
+
+  // Add admin menu items if admin key is verified
+  if (user?.role === 'admin' && adminKeyVerified) {
+    navItems.push({ path: '/admin/users', label: 'User Approval' });
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -43,7 +49,15 @@ export const Layout = ({ children }: LayoutProps) => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {user?.role === 'admin' && !adminKeyVerified && (
+                <AdminKeyUnlock />
+              )}
               <span className="text-sm text-gray-700">{user?.name}</span>
+              {user?.role === 'admin' && adminKeyVerified && (
+                <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
+                  Admin
+                </span>
+              )}
               <Button variant="outline" size="sm" onClick={logout}>
                 Logout
               </Button>

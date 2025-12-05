@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import Prospects from './pages/Prospects';
 import ProspectDetail from './pages/ProspectDetail';
 import SchedulePreTalk from './pages/SchedulePreTalk';
+import PendingApproval from './pages/PendingApproval';
+import UserApproval from './pages/UserApproval';
 import api from './services/api';
 
 function AuthCallback() {
@@ -13,6 +15,7 @@ function AuthCallback() {
   const navigate = useNavigate();
   const { setToken, setUser, setLoading } = useAuthStore();
   const token = searchParams.get('token');
+  const pending = searchParams.get('pending') === 'true';
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -23,11 +26,17 @@ function AuthCallback() {
           
           // Fetch user data
           const response = await api.get('/auth/me');
-          setUser(response.data);
+          const userData = response.data;
+          setUser(userData);
           setLoading(false);
           
-          // Navigate to dashboard
-          navigate('/dashboard', { replace: true });
+          // Check if user is pending approval
+          if (pending || !userData.is_approved) {
+            navigate('/pending-approval', { replace: true });
+          } else {
+            // Navigate to dashboard
+            navigate('/dashboard', { replace: true });
+          }
         } catch (error: any) {
           console.error('Failed to fetch user:', error);
           console.error('Error details:', error.response?.data || error.message);
@@ -42,7 +51,7 @@ function AuthCallback() {
     };
 
     fetchUser();
-  }, [token, navigate, setToken, setUser, setLoading]);
+  }, [token, pending, navigate, setToken, setUser, setLoading]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -88,6 +97,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  // Check if user is approved (except for pending-approval page)
+  if (!user.is_approved && !window.location.pathname.includes('/pending-approval')) {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -109,6 +123,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/pending-approval" element={<PendingApproval />} />
         <Route
           path="/dashboard"
           element={
@@ -138,6 +153,14 @@ function App() {
           element={
             <ProtectedRoute>
               <SchedulePreTalk />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <UserApproval />
             </ProtectedRoute>
           }
         />

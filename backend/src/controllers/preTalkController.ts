@@ -53,10 +53,7 @@ export const createPreTalk = async (
 
     const prospect = prospectResult.rows[0];
 
-    // Check permissions
-    if (req.userRole === 'member' && prospect.created_by !== req.userId) {
-      return next(new AppError('Forbidden', 403));
-    }
+    // Organization-wide visibility: all users can schedule pre-talks for any prospect
 
     // Verify mentor exists
     const mentorQuery = 'SELECT * FROM users WHERE id = $1 AND role IN ($2, $3)';
@@ -272,9 +269,7 @@ export const updatePreTalk = async (
     const prospectResult = await pool.query(prospectQuery, [preTalk.prospect_id]);
     const prospect = prospectResult.rows[0];
 
-    if (req.userRole === 'member' && prospect.created_by !== req.userId) {
-      return next(new AppError('Forbidden', 403));
-    }
+    // Organization-wide visibility: all users can access all pre-talks
 
     // Update calendar event if scheduled_at changed
     if (validated.scheduled_at && preTalk.calendar_event_id) {
@@ -398,9 +393,7 @@ export const completePreTalk = async (
     const prospectResult = await pool.query(prospectQuery, [preTalk.prospect_id]);
     const prospect = prospectResult.rows[0];
 
-    if (req.userRole === 'member' && prospect.created_by !== req.userId) {
-      return next(new AppError('Forbidden', 403));
-    }
+    // Organization-wide visibility: all users can access all pre-talks
 
     // Update pre-talk
     const updateQuery = `
