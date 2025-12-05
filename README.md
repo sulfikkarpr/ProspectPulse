@@ -2,12 +2,12 @@
 
 A modern, integrated web application designed to simplify and streamline network marketing operations for individuals and teams.
 
-## Features
+## ✨ Features
 
-- **Prospect Management**: Record and track prospects through their entire journey
+- **Prospect Management**: Record and track prospects with notes, contact info, and status tracking
 - **Pre-Talk Scheduling**: Schedule mentor sessions with automatic Google Calendar and Google Meet integration
 - **Session Documentation**: Capture notes, concerns, objections, and next steps
-- **Google Sheets Sync**: Automatic synchronization of all data to Google Sheets
+- **Google Sheets Sync**: Manual and automatic synchronization of all data to Google Sheets
 - **Dashboard & Analytics**: Daily, weekly, and monthly activity reports with visual charts
 - **Role-Based Access**: Admin, Mentor, and Member roles with appropriate permissions
 
@@ -26,11 +26,13 @@ A modern, integrated web application designed to simplify and streamline network
 - Google Cloud Project with OAuth credentials
 - Google Cloud APIs enabled: Calendar API, Sheets API
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Clone and Install
 
 ```bash
+git clone <your-repo-url>
+cd ProspectPulse
 npm install
 cd frontend && npm install
 cd ../backend && npm install
@@ -38,57 +40,62 @@ cd ../backend && npm install
 
 ### 2. Environment Setup
 
-Copy `.env.example` to `.env` in the root and backend directories:
+Create environment files:
 
-```bash
-cp .env.example .env
-cp .env.example backend/.env
+**Backend (`backend/.env`):**
+```env
+NODE_ENV=development
+PORT=4000
+FRONTEND_URL=http://localhost:5173
+JWT_SECRET=your-super-secret-jwt-key-change-this-min-32-chars
+DATABASE_URL=postgresql://user:pass@host:6543/dbname
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:4000/api/auth/callback
+GOOGLE_SHEETS_ID=your-google-sheets-id
 ```
 
-Fill in all required environment variables (see [Environment Variables](#environment-variables) section).
+**Frontend (`frontend/.env`):**
+```env
+VITE_API_URL=http://localhost:4000
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+```
 
 ### 3. Database Setup
 
-#### Option A: Using Supabase (Recommended)
+#### Using Supabase (Recommended)
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Get your connection string from Project Settings > Database
+2. Get your **connection pooler URL** (port 6543) from Project Settings > Database
 3. Update `DATABASE_URL` in `backend/.env`
-4. Run migrations:
+4. Run migrations in Supabase SQL Editor:
+   - Copy contents of `supabase/migrations/001_initial_schema.sql`
+   - Paste and run in Supabase SQL Editor
 
-```bash
-cd supabase
-# Apply migrations using Supabase CLI or SQL Editor
-```
-
-#### Option B: Using Local PostgreSQL
+#### Using Local PostgreSQL
 
 ```bash
 docker-compose up -d
-```
-
-Then update `DATABASE_URL` in `backend/.env` to:
-```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/prospectpulse
+psql -U postgres -d prospectpulse -f supabase/migrations/001_initial_schema.sql
 ```
 
 ### 4. Google OAuth Setup
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com)
 2. Create a new project or select existing
-3. Enable APIs: Calendar API, Sheets API
+3. Enable APIs: **Calendar API**, **Sheets API**
 4. Create OAuth 2.0 credentials:
-   - Application type: Web application
-   - Authorized redirect URIs: `http://localhost:4000/api/auth/callback`
-5. Copy Client ID and Client Secret to `.env`
+   - Application type: **Web application**
+   - Authorized redirect URIs: `http://localhost:4000/api/auth/callback` (for local dev)
+5. Copy **Client ID** and **Client Secret** to `backend/.env`
 
 ### 5. Google Sheets Setup
 
 1. Create a new Google Sheet
-2. Create three sheets: "Prospects", "PreTalks", "ActivityLogs"
-3. Add headers to each sheet (see [Sheet Structure](#google-sheets-structure))
-4. Share the sheet with the service account email (if using service account) or your Google account
-5. Copy the Sheet ID from the URL to `GOOGLE_SHEETS_ID` in `.env`
+2. Create three sheets: **"Prospects"**, **"PreTalks"**, **"ActivityLogs"**
+3. Add headers to each sheet (see [GOOGLE_SHEETS_TEMPLATE.md](./GOOGLE_SHEETS_TEMPLATE.md))
+4. Share the sheet with your Google account (the one used for OAuth)
+5. Copy the **Sheet ID** from the URL to `GOOGLE_SHEETS_ID` in `backend/.env`
 
 ### 6. Run Development Servers
 
@@ -98,8 +105,10 @@ npm run dev
 ```
 
 This starts:
-- Backend: http://localhost:4000
-- Frontend: http://localhost:5173
+- **Backend:** http://localhost:4000
+- **Frontend:** http://localhost:5173
+
+Visit http://localhost:5173 to access the application.
 
 ## Environment Variables
 
@@ -123,16 +132,14 @@ This starts:
 | `VITE_API_URL` | Backend API URL | Yes |
 | `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID | Yes |
 
-## Google Sheets Structure
+## 📊 Google Sheets Structure
 
-### Prospects Sheet
-Headers: `ID`, `Name`, `Phone`, `Email`, `Age`, `City`, `Profession`, `Source`, `Status`, `Assigned Mentor`, `Created By`, `Created At`, `Updated At`
+For detailed Google Sheets setup instructions, see [GOOGLE_SHEETS_TEMPLATE.md](./GOOGLE_SHEETS_TEMPLATE.md)
 
-### PreTalks Sheet
-Headers: `ID`, `Prospect ID`, `Prospect Name`, `Mentor ID`, `Mentor Name`, `Scheduled At`, `Status`, `Meet Link`, `Notes`, `Created At`, `Updated At`
-
-### ActivityLogs Sheet
-Headers: `ID`, `User ID`, `User Name`, `Prospect ID`, `Prospect Name`, `Action`, `Meta`, `Created At`
+**Required Sheets:**
+- **Prospects:** `ID`, `Name`, `Phone`, `Email`, `Age`, `City`, `Profession`, `Source`, `Status`, `Assigned Mentor`, `Created By`, `Notes`, `Created At`, `Updated At`
+- **PreTalks:** `ID`, `Prospect ID`, `Prospect Name`, `Mentor ID`, `Mentor Name`, `Scheduled At`, `Status`, `Meet Link`, `Notes`, `Created At`, `Updated At`
+- **ActivityLogs:** `ID`, `User ID`, `User Name`, `Prospect ID`, `Prospect Name`, `Action`, `Meta`, `Created At`
 
 ## Project Structure
 
@@ -173,28 +180,21 @@ prospectpulse/
 - `GET /api/dashboard/weekly` - Weekly statistics
 - `GET /api/dashboard/monthly` - Monthly statistics
 
-## Deployment
+## 📦 Deployment
 
-### Frontend (Vercel)
+For detailed deployment instructions, see [DEPLOY_TO_VERCEL.md](./DEPLOY_TO_VERCEL.md)
 
-1. Connect your GitHub repository to Vercel
-2. Set build command: `cd frontend && npm install && npm run build`
-3. Set output directory: `frontend/dist`
-4. Add environment variables in Vercel dashboard
+**Quick Summary:**
+- **Frontend:** Deploy to Vercel (free tier available)
+- **Backend:** Deploy to Render or Railway (free tier available)
+- **Database:** Use Supabase (already set up)
 
-### Backend (Render/Railway)
-
-1. Connect your GitHub repository
-2. Set build command: `cd backend && npm install && npm run build`
-3. Set start command: `cd backend && npm start`
-4. Add all environment variables
-5. Update `GOOGLE_REDIRECT_URI` to production URL
-
-### Database (Supabase)
-
-1. Create production project on Supabase
-2. Run migrations in production
-3. Update `DATABASE_URL` in backend environment variables
+**Key Steps:**
+1. Push code to GitHub
+2. Connect repository to Vercel (frontend) and Render (backend)
+3. Set environment variables in both platforms
+4. Update OAuth redirect URI in Google Cloud Console
+5. Test deployment
 
 ## Troubleshooting
 
