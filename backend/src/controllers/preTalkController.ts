@@ -170,12 +170,7 @@ export const getPreTalks = async (
     const params: any[] = [];
     let paramCount = 0;
 
-    // Role-based filtering
-    if (req.userRole === 'member') {
-      paramCount++;
-      query += ` AND p.created_by = $${paramCount}`;
-      params.push(req.userId);
-    }
+    // Organization-wide visibility: all users see all pre-talks
 
     if (prospect_id) {
       paramCount++;

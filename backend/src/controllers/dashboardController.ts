@@ -18,19 +18,14 @@ export const getDailyStats = async (
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    // Organization-wide visibility: all users see all data
     let prospectsQuery = `
       SELECT COUNT(*) as count, status
       FROM prospects
       WHERE created_at >= $1 AND created_at < $2
+      GROUP BY status
     `;
-    let params: any[] = [today, tomorrow];
-
-    if (req.userRole === 'member') {
-      prospectsQuery += ' AND created_by = $3';
-      params.push(req.userId);
-    }
-
-    prospectsQuery += ' GROUP BY status';
+    const params: any[] = [today, tomorrow];
 
     const prospectsResult = await pool.query(prospectsQuery, params);
 
@@ -39,11 +34,8 @@ export const getDailyStats = async (
       FROM pre_talks pt
       LEFT JOIN prospects p ON pt.prospect_id = p.id
       WHERE pt.scheduled_at >= $1 AND pt.scheduled_at < $2
+      GROUP BY pt.status
     `;
-
-    if (req.userRole === 'member') {
-      preTalksQuery += ' AND p.created_by = $3';
-    }
 
     preTalksQuery += ' GROUP BY pt.status';
 
@@ -77,21 +69,16 @@ export const getWeeklyStats = async (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
 
+    // Organization-wide visibility: all users see all data
     let prospectsQuery = `
       SELECT 
         DATE(created_at) as date,
         COUNT(*) as count
       FROM prospects
       WHERE created_at >= $1 AND created_at < $2
+      GROUP BY DATE(created_at) ORDER BY date
     `;
-    let params: any[] = [weekStart, weekEnd];
-
-    if (req.userRole === 'member') {
-      prospectsQuery += ' AND created_by = $3';
-      params.push(req.userId);
-    }
-
-    prospectsQuery += ' GROUP BY DATE(created_at) ORDER BY date';
+    const params: any[] = [weekStart, weekEnd];
 
     const prospectsResult = await pool.query(prospectsQuery, params);
 
@@ -102,13 +89,8 @@ export const getWeeklyStats = async (
       FROM pre_talks pt
       LEFT JOIN prospects p ON pt.prospect_id = p.id
       WHERE pt.scheduled_at >= $1 AND pt.scheduled_at < $2
+      GROUP BY DATE(pt.scheduled_at) ORDER BY date
     `;
-
-    if (req.userRole === 'member') {
-      preTalksQuery += ' AND p.created_by = $3';
-    }
-
-    preTalksQuery += ' GROUP BY DATE(pt.scheduled_at) ORDER BY date';
 
     const preTalksResult = await pool.query(preTalksQuery, params);
 
@@ -139,17 +121,13 @@ export const getMonthlyStats = async (
 
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
+    // Organization-wide visibility: all users see all data
     let totalProspectsQuery = `
       SELECT COUNT(*) as total
       FROM prospects
       WHERE created_at >= $1 AND created_at < $2
     `;
-    let params: any[] = [monthStart, monthEnd];
-
-    if (req.userRole === 'member') {
-      totalProspectsQuery += ' AND created_by = $3';
-      params.push(req.userId);
-    }
+    const params: any[] = [monthStart, monthEnd];
 
     const totalProspectsResult = await pool.query(totalProspectsQuery, params);
 
@@ -157,13 +135,8 @@ export const getMonthlyStats = async (
       SELECT status, COUNT(*) as count
       FROM prospects
       WHERE created_at >= $1 AND created_at < $2
+      GROUP BY status
     `;
-
-    if (req.userRole === 'member') {
-      statusBreakdownQuery += ' AND created_by = $3';
-    }
-
-    statusBreakdownQuery += ' GROUP BY status';
 
     const statusBreakdownResult = await pool.query(statusBreakdownQuery, params);
 
@@ -176,10 +149,6 @@ export const getMonthlyStats = async (
       LEFT JOIN prospects p ON pt.prospect_id = p.id
       WHERE pt.scheduled_at >= $1 AND pt.scheduled_at < $2
     `;
-
-    if (req.userRole === 'member') {
-      preTalksQuery += ' AND p.created_by = $3';
-    }
 
     const preTalksResult = await pool.query(preTalksQuery, params);
 
