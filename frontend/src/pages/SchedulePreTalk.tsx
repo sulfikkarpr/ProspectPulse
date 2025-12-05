@@ -27,6 +27,7 @@ const SchedulePreTalk = () => {
     mentor_id: '',
     assigned_to: '',
     scheduled_at: '',
+    connected: '',
     notes: '',
   });
   const navigate = useNavigate();
@@ -78,6 +79,7 @@ const SchedulePreTalk = () => {
         mentor_id: '',
         assigned_to: '',
         scheduled_at: '',
+        connected: '',
         notes: '',
       });
     },
@@ -216,6 +218,13 @@ const SchedulePreTalk = () => {
               value={formData.scheduled_at}
               onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
               required
+            />
+
+            <Input
+              label="Connected (Mentors to Connect in Call) - Optional"
+              value={formData.connected}
+              onChange={(e) => setFormData({ ...formData, connected: e.target.value })}
+              placeholder="e.g., John Doe, Jane Smith (mentors to connect in this call)"
             />
 
             <Textarea

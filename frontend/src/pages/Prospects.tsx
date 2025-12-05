@@ -41,7 +41,6 @@ const Prospects = () => {
     city: '',
     profession: '',
     source: '',
-    referred_by: '',
     notes: '',
   });
   
@@ -126,7 +125,6 @@ const Prospects = () => {
         city: '',
         profession: '',
         source: '',
-        referred_by: '',
         notes: '',
       });
     },
@@ -137,8 +135,26 @@ const Prospects = () => {
     createMutation.mutate({
       ...formData,
       age: formData.age ? parseInt(formData.age) : undefined,
-      referred_by: formData.referred_by || null,
     });
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async (prospectId: string) => {
+      await api.delete(`/prospects/${prospectId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects'] });
+      alert('Prospect deleted successfully');
+    },
+    onError: (error: any) => {
+      alert(`Failed to delete prospect: ${error.response?.data?.error || error.message}`);
+    },
+  });
+
+  const handleDelete = (prospectId: string, prospectName: string) => {
+    if (window.confirm(`Are you sure you want to delete "${prospectName}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(prospectId);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -277,11 +293,13 @@ const Prospects = () => {
               {prospects.map((prospect) => (
                 <li
                   key={prospect.id}
-                  className="px-3 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/prospects/${prospect.id}`)}
+                  className="px-3 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => navigate(`/prospects/${prospect.id}`)}
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                           {prospect.name}
@@ -305,6 +323,20 @@ const Prospects = () => {
                         {prospect.referred_by_name && <span>• Referred by: {prospect.referred_by_name}</span>}
                         <span>• {new Date(prospect.created_at).toLocaleDateString()}</span>
                       </div>
+                    </div>
+                    <div className="flex gap-2 mt-2 sm:mt-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(prospect.id, prospect.name);
+                        }}
+                        disabled={deleteMutation.isPending}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
+                      >
+                        {deleteMutation.isPending ? 'Deleting...' : '🗑️ Delete'}
+                      </Button>
                     </div>
                   </div>
                 </li>
@@ -365,23 +397,12 @@ const Prospects = () => {
               required
             >
               <option value="">Select source</option>
+              <option value="referred">Referred</option>
               <option value="referral">Referral</option>
               <option value="cold">Cold</option>
               <option value="warm">Warm</option>
               <option value="social_media">Social Media</option>
               <option value="other">Other</option>
-            </Select>
-            <Select
-              label="Referred By (Optional)"
-              value={formData.referred_by}
-              onChange={(e) => setFormData({ ...formData, referred_by: e.target.value })}
-            >
-              <option value="">None</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
             </Select>
             <Textarea
               label="Notes"

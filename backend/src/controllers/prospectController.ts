@@ -293,3 +293,49 @@ export const updateProspect = async (
   }
 };
 
+export const deleteProspect = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) {
+      return next(new AppError('Unauthorized', 401));
+    }
+
+    const { id } = req.params;
+
+    // Check if prospect exists
+    const checkQuery = 'SELECT * FROM prospects WHERE id = $1';
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      return next(new AppError('Prospect not found', 404));
+    }
+
+    const prospect = checkResult.rows[0];
+
+    // Delete prospect (CASCADE will handle related pre_talks and activity_logs)
+    const deleteQuery = 'DELETE FROM prospects WHERE id = $1 RETURNING id, name';
+    const result = await pool.query(deleteQuery, [id]);
+
+    // Log activity
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, action, meta) VALUES ($1, $2, $3)',
+      [
+        req.userId,
+        'prospect_deleted',
+        JSON.stringify({ prospect_name: prospect.name, prospect_id: id }),
+      ]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Prospect deleted successfully',
+      deletedProspect: result.rows[0]
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

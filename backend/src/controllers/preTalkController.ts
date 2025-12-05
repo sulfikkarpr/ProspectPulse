@@ -17,6 +17,7 @@ const createPreTalkSchema = z.object({
   }, {
     message: 'Invalid date format. Expected ISO datetime or datetime-local format (YYYY-MM-DDTHH:mm)',
   }),
+  connected: z.string().optional(), // Mentors to connect in the call
   notes: z.string().optional(), // Notes/options for pre-talk
 });
 
@@ -147,9 +148,9 @@ export const createPreTalk = async (
     // Create pre-talk record
     const insertQuery = `
       INSERT INTO pre_talks (
-        prospect_id, mentor_id, assigned_to, scheduled_at, calendar_event_id, meet_link, status, notes
+        prospect_id, mentor_id, assigned_to, scheduled_at, calendar_event_id, meet_link, status, connected, notes
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)
+      VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7, $8)
       RETURNING *
     `;
 
@@ -160,6 +161,7 @@ export const createPreTalk = async (
       scheduledAt,
       eventId,
       meetLink,
+      validated.connected || null,
       validated.notes || null,
     ]);
 
